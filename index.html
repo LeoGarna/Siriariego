@@ -1,0 +1,1965 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SIRIA — Mi Planta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
+<style>
+/* ── RESET ─────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  /* Paleta natural */
+  --soil:      #3d2b1f;
+  --bark:      #5c3d2e;
+  --moss:      #4a6741;
+  --leaf:      #6b8f5e;
+  --sage:      #8aab7a;
+  --mist:      #b8cdb0;
+  --dew:       #d4e8cc;
+  --sky:       #c8dde8;
+  --fog:       #e8f0ec;
+  --petal:     #f2e8d8;
+  --cream:     #f8f4ee;
+  --warm:      #faf7f2;
+
+  /* Semánticos */
+  --bg:        #f5f1eb;
+  --surface:   #faf7f2;
+  --surface2:  #fff;
+  --border:    rgba(74,103,65,0.12);
+  --border2:   rgba(74,103,65,0.22);
+  --text:      #2c3828;
+  --text2:     #5a6e54;
+  --text3:     #8fa086;
+  --accent:    #4a6741;
+  --accent2:   #7a9e6a;
+  --sun:       #d4862a;
+  --water:     #4a7fa8;
+  --earth:     #7a5c3d;
+  --air:       #5a8fa8;
+  --danger:    #c0442a;
+  --warn:      #c08a2a;
+  --ok:        #4a7a4a;
+
+  --radius:    16px;
+  --radius-sm: 10px;
+  --shadow:    0 2px 16px rgba(44,56,40,0.08);
+  --shadow-lg: 0 8px 40px rgba(44,56,40,0.12);
+
+  --font:      'DM Sans',sans-serif;
+  --font-serif:'DM Serif Display',serif;
+  --font-mono: 'DM Mono',monospace;
+}
+
+html{scroll-behavior:smooth;height:100%}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text);
+  height:100%;
+  overflow:hidden;
+  font-size:15px;
+  line-height:1.5;
+}
+
+/* ── LAYOUT PRINCIPAL ──────────────────────────── */
+.app{
+  display:grid;
+  grid-template-columns:260px 1fr;
+  grid-template-rows:100vh;
+  height:100vh;
+}
+
+/* ── SIDEBAR ───────────────────────────────────── */
+.sidebar{
+  background:var(--surface2);
+  border-right:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  position:relative;
+}
+
+/* Ilustración orgánica top */
+.sidebar-art{
+  height:140px;
+  background:linear-gradient(160deg, #3d5c35 0%, #4a6741 40%, #6b8f5e 100%);
+  position:relative;
+  overflow:hidden;
+  flex-shrink:0;
+}
+.sidebar-art svg{position:absolute;bottom:0;left:0;width:100%}
+.sidebar-art .plant-title{
+  position:absolute;top:20px;left:20px;
+  font-family:var(--font-serif);
+  font-size:1.6rem;
+  color:rgba(255,255,255,0.95);
+  line-height:1.1;
+}
+.sidebar-art .plant-sub{
+  position:absolute;top:60px;left:20px;
+  font-size:0.72rem;
+  color:rgba(255,255,255,0.55);
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  font-weight:300;
+}
+
+/* Nav */
+.sidebar-nav{
+  flex:1;
+  overflow-y:auto;
+  padding:16px 12px;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.sidebar-nav::-webkit-scrollbar{width:0}
+
+.nav-section{
+  font-size:0.62rem;
+  letter-spacing:0.18em;
+  text-transform:uppercase;
+  color:var(--text3);
+  padding:12px 8px 6px;
+  font-weight:500;
+}
+
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 12px;
+  border-radius:var(--radius-sm);
+  cursor:pointer;
+  transition:all 0.18s;
+  font-size:0.88rem;
+  font-weight:400;
+  color:var(--text2);
+  border:1px solid transparent;
+  user-select:none;
+}
+.nav-item:hover{background:var(--fog);color:var(--text)}
+.nav-item.active{
+  background:var(--dew);
+  color:var(--accent);
+  font-weight:500;
+  border-color:rgba(74,103,65,0.15);
+}
+.nav-item .nav-icon{
+  width:28px;height:28px;
+  border-radius:8px;
+  display:grid;place-items:center;
+  font-size:14px;
+  background:var(--fog);
+  flex-shrink:0;
+  transition:background 0.18s;
+}
+.nav-item.active .nav-icon{background:rgba(74,103,65,0.12)}
+.nav-badge{
+  margin-left:auto;
+  background:var(--danger);
+  color:#fff;
+  font-size:0.58rem;
+  padding:2px 5px;
+  border-radius:20px;
+  font-weight:600;
+  display:none;
+}
+.nav-badge.show{display:block}
+
+/* Sidebar bottom — status */
+.sidebar-bottom{
+  padding:12px;
+  border-top:1px solid var(--border);
+  display:flex;flex-direction:column;gap:8px;
+}
+.conn-row{
+  display:flex;align-items:center;justify-content:space-between;
+}
+.conn-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--text3);
+  transition:background 0.4s;
+  flex-shrink:0;
+}
+.conn-dot.ok{background:var(--ok);box-shadow:0 0 6px rgba(74,122,74,0.4)}
+.conn-dot.warn{background:var(--warn)}
+.conn-dot.err{background:var(--danger)}
+.conn-label{font-size:0.72rem;color:var(--text3);display:flex;align-items:center;gap:6px}
+.conn-label b{color:var(--text2);font-weight:500}
+.last-seen{font-size:0.68rem;color:var(--text3);font-family:var(--font-mono);}
+
+/* Settings btn */
+.settings-btn{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 10px;
+  border-radius:var(--radius-sm);
+  border:1px solid var(--border);
+  background:var(--fog);
+  cursor:pointer;
+  font-size:0.78rem;
+  color:var(--text2);
+  transition:all 0.18s;
+  width:100%;
+  font-family:var(--font);
+}
+.settings-btn:hover{background:var(--dew);border-color:var(--border2);color:var(--accent)}
+
+/* ── MAIN AREA ─────────────────────────────────── */
+.main{
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  background:var(--bg);
+}
+
+/* Topbar */
+.topbar{
+  height:58px;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.page-title{
+  font-family:var(--font-serif);
+  font-size:1.25rem;
+  color:var(--text);
+}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.time-display{
+  font-family:var(--font-mono);
+  font-size:0.8rem;
+  color:var(--text2);
+  background:var(--fog);
+  padding:5px 10px;
+  border-radius:8px;
+  border:1px solid var(--border);
+}
+.alert-btn{
+  position:relative;
+  width:36px;height:36px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:var(--surface2);
+  display:grid;place-items:center;
+  cursor:pointer;
+  font-size:14px;
+  transition:all 0.18s;
+}
+.alert-btn:hover{background:var(--fog);border-color:var(--border2)}
+.alert-btn .badge{
+  position:absolute;top:-3px;right:-3px;
+  width:14px;height:14px;
+  background:var(--danger);
+  border-radius:50%;border:2px solid var(--surface);
+  display:none;
+}
+.alert-btn .badge.show{display:block}
+
+/* ── CONTENT (scrollable) ──────────────────────── */
+.content{
+  flex:1;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:24px 28px;
+}
+.content::-webkit-scrollbar{width:5px}
+.content::-webkit-scrollbar-track{background:transparent}
+.content::-webkit-scrollbar-thumb{background:var(--mist);border-radius:3px}
+
+/* Páginas */
+.page{display:none}
+.page.active{display:block}
+
+/* ── CARDS ─────────────────────────────────────── */
+.card{
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:20px;
+  box-shadow:var(--shadow);
+  transition:box-shadow 0.2s;
+}
+.card:hover{box-shadow:var(--shadow-lg)}
+.card-header{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;
+}
+.card-title{
+  font-size:0.78rem;
+  font-weight:500;
+  letter-spacing:0.06em;
+  text-transform:uppercase;
+  color:var(--text3);
+  display:flex;align-items:center;gap:7px;
+}
+.card-title-icon{
+  width:22px;height:22px;
+  border-radius:6px;
+  display:grid;place-items:center;
+  font-size:11px;
+  background:var(--fog);
+}
+
+/* ── GRIDS ─────────────────────────────────────── */
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.grid-auto{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+@media(max-width:900px){
+  .grid-3,.grid-4{grid-template-columns:repeat(2,1fr)}
+  .grid-2{grid-template-columns:1fr}
+}
+
+/* ── STAT CARD (KPI) ───────────────────────────── */
+.stat-card{
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:18px;
+  display:flex;flex-direction:column;gap:8px;
+  box-shadow:var(--shadow);
+  transition:all 0.2s;
+  position:relative;
+  overflow:hidden;
+}
+.stat-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-1px)}
+.stat-card::before{
+  content:'';
+  position:absolute;top:0;left:0;right:0;height:3px;
+  border-radius:var(--radius) var(--radius) 0 0;
+  background:var(--accent);
+  opacity:0.4;
+}
+.stat-card.water::before{background:var(--water)}
+.stat-card.sun::before{background:var(--sun)}
+.stat-card.air::before{background:var(--air)}
+.stat-card.earth::before{background:var(--earth)}
+.stat-card.danger::before{background:var(--danger)}
+
+.stat-icon{font-size:20px;margin-bottom:2px}
+.stat-label{font-size:0.7rem;color:var(--text3);font-weight:500;letter-spacing:0.05em;text-transform:uppercase}
+.stat-value{
+  font-family:var(--font-serif);
+  font-size:2rem;
+  color:var(--text);
+  line-height:1;
+  transition:color 0.3s;
+}
+.stat-value.ok{color:var(--ok)}
+.stat-value.warn{color:var(--warn)}
+.stat-value.danger{color:var(--danger)}
+.stat-unit{font-size:0.9rem;color:var(--text3);font-family:var(--font);font-weight:300;margin-left:3px}
+.stat-sub{font-size:0.72rem;color:var(--text3)}
+.stat-bar{
+  height:3px;background:var(--fog);border-radius:2px;overflow:hidden;margin-top:4px;
+}
+.stat-bar-fill{height:100%;border-radius:2px;transition:width 1s cubic-bezier(0.4,0,0.2,1)}
+
+/* ── HEALTH RING ───────────────────────────────── */
+.health-ring-wrap{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:8px 0;
+}
+.health-ring-wrap svg{overflow:visible}
+.ring-label{font-size:0.72rem;color:var(--text3);letter-spacing:0.05em;}
+.ring-value{font-family:var(--font-serif);font-size:1.1rem;color:var(--text);}
+
+/* ── PROGRESS BAR LABELED ──────────────────────── */
+.prog-row{
+  display:flex;flex-direction:column;gap:5px;
+  margin-bottom:12px;
+}
+.prog-row:last-child{margin-bottom:0}
+.prog-top{display:flex;justify-content:space-between;align-items:baseline}
+.prog-name{font-size:0.8rem;color:var(--text2)}
+.prog-val{font-size:0.78rem;color:var(--text);font-family:var(--font-mono);font-weight:400}
+.prog-track{height:6px;background:var(--fog);border-radius:3px;overflow:hidden}
+.prog-fill{height:100%;border-radius:3px;transition:width 1s ease}
+
+/* ── SECTION HEADER ────────────────────────────── */
+.sec-header{
+  display:flex;align-items:baseline;justify-content:space-between;
+  margin-bottom:14px;
+}
+.sec-title{
+  font-family:var(--font-serif);
+  font-size:1.1rem;
+  color:var(--text);
+}
+.sec-action{
+  font-size:0.75rem;
+  color:var(--accent);
+  cursor:pointer;
+  text-decoration:none;
+  font-weight:500;
+}
+.sec-action:hover{text-decoration:underline}
+
+/* ── TIMELINE / LOG ────────────────────────────── */
+.timeline{display:flex;flex-direction:column;gap:0}
+.tl-item{
+  display:flex;gap:12px;
+  padding:10px 0;
+  border-bottom:1px solid var(--border);
+  font-size:0.82rem;
+  animation:slide-in 0.3s ease;
+}
+.tl-item:last-child{border-bottom:none}
+@keyframes slide-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.tl-dot{
+  width:8px;height:8px;border-radius:50%;
+  margin-top:5px;flex-shrink:0;
+  background:var(--mist);
+}
+.tl-dot.info{background:var(--accent2)}
+.tl-dot.warn{background:var(--warn)}
+.tl-dot.danger{background:var(--danger)}
+.tl-dot.ok{background:var(--ok)}
+.tl-time{color:var(--text3);font-family:var(--font-mono);font-size:0.68rem;flex-shrink:0;padding-top:2px}
+.tl-msg{color:var(--text2);flex:1;line-height:1.4}
+
+/* ── BUTTONS ───────────────────────────────────── */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:9px 16px;
+  border-radius:10px;
+  border:1px solid var(--border2);
+  background:var(--surface2);
+  color:var(--text2);
+  font-family:var(--font);
+  font-size:0.82rem;
+  font-weight:500;
+  cursor:pointer;
+  transition:all 0.18s;
+  white-space:nowrap;
+}
+.btn:hover{background:var(--fog);color:var(--text);border-color:rgba(74,103,65,0.3)}
+.btn:active{transform:scale(0.97)}
+.btn.primary{
+  background:var(--accent);color:#fff;border-color:var(--accent);
+}
+.btn.primary:hover{background:#3d5935;border-color:#3d5935}
+.btn.water{background:var(--water);color:#fff;border-color:var(--water)}
+.btn.water:hover{background:#3d6f96}
+.btn.danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn.danger:hover{background:#a33a22}
+.btn.sm{padding:6px 12px;font-size:0.75rem}
+.btn.full{width:100%;justify-content:center}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ── CHIP / TAG ────────────────────────────────── */
+.chip{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 9px;
+  border-radius:20px;
+  font-size:0.68rem;
+  font-weight:500;
+  border:1px solid transparent;
+}
+.chip.ok{background:rgba(74,122,74,0.1);color:var(--ok);border-color:rgba(74,122,74,0.2)}
+.chip.warn{background:rgba(192,138,42,0.1);color:var(--warn);border-color:rgba(192,138,42,0.2)}
+.chip.danger{background:rgba(192,68,42,0.1);color:var(--danger);border-color:rgba(192,68,42,0.2)}
+.chip.neutral{background:var(--fog);color:var(--text3);border-color:var(--border)}
+
+/* ── NPK ───────────────────────────────────────── */
+.npk-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px}
+.npk-card{
+  background:var(--fog);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:14px;
+  text-align:center;
+}
+.npk-letter{font-family:var(--font-serif);font-size:1.4rem;margin-bottom:2px}
+.npk-letter.N{color:#4a7fa8}
+.npk-letter.P{color:#8a6e4a}
+.npk-letter.K{color:#6b8f5e}
+.npk-name{font-size:0.62rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px}
+.npk-val{font-family:var(--font-mono);font-size:0.95rem;color:var(--text)}
+
+/* ── WEATHER PANEL ─────────────────────────────── */
+.weather-hero{
+  display:flex;align-items:center;gap:16px;
+  padding:16px;
+  background:linear-gradient(135deg,var(--dew),var(--sky));
+  border-radius:12px;
+  margin-bottom:14px;
+}
+.weather-icon-big{font-size:2.8rem;line-height:1}
+.weather-temp-big{
+  font-family:var(--font-serif);
+  font-size:2.6rem;
+  color:var(--text);
+  line-height:1;
+}
+.weather-desc-big{font-size:0.82rem;color:var(--text2);margin-top:4px;text-transform:capitalize}
+.weather-loc{font-size:0.68rem;color:var(--text3);margin-top:2px}
+
+/* Rain probability */
+.rain-prob{
+  background:linear-gradient(135deg,var(--sky),#d0e8f8);
+  border-radius:12px;
+  padding:14px;
+  display:flex;align-items:center;gap:12px;
+}
+.rain-pct{
+  font-family:var(--font-serif);
+  font-size:1.8rem;
+  color:var(--water);
+  flex-shrink:0;
+}
+.rain-info{flex:1}
+.rain-label{font-size:0.72rem;color:var(--text2);margin-bottom:4px}
+.rain-bar{height:5px;background:rgba(74,127,168,0.2);border-radius:3px;overflow:hidden}
+.rain-fill{height:100%;background:var(--water);border-radius:3px;transition:width 1s ease}
+.rain-fill.high{background:var(--danger)}
+
+/* ── IA BLOCK ──────────────────────────────────── */
+.ia-card{
+  background:linear-gradient(135deg,var(--dew) 0%,var(--fog) 100%);
+  border:1px solid rgba(74,103,65,0.18);
+  border-radius:var(--radius);
+  padding:18px;
+}
+.ia-header{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:10px;
+}
+.ia-badge{
+  font-size:0.62rem;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  color:var(--accent);
+  background:rgba(74,103,65,0.1);
+  padding:2px 8px;
+  border-radius:20px;
+  border:1px solid rgba(74,103,65,0.2);
+}
+.ia-text{
+  font-size:0.88rem;
+  color:var(--text2);
+  line-height:1.6;
+}
+.ia-pred{
+  font-family:var(--font-serif);
+  font-size:1.05rem;
+  color:var(--accent);
+  margin-bottom:4px;
+}
+.ia-fault{
+  display:flex;align-items:center;gap:6px;
+  font-size:0.8rem;
+  color:var(--warn);
+  background:rgba(192,138,42,0.08);
+  border:1px solid rgba(192,138,42,0.15);
+  border-radius:8px;
+  padding:8px 12px;
+  margin-top:8px;
+}
+
+/* ── SOIL VISUAL ───────────────────────────────── */
+.soil-glass{
+  background:linear-gradient(180deg,rgba(107,143,94,0.12) 0%,rgba(61,43,31,0.15) 100%);
+  border:1px solid var(--border);
+  border-radius:12px;
+  height:120px;
+  position:relative;
+  overflow:hidden;
+  margin:8px 0;
+}
+.soil-fill-layer{
+  position:absolute;bottom:0;left:0;right:0;
+  background:linear-gradient(180deg,rgba(107,143,94,0.3),rgba(61,43,31,0.5));
+  border-radius:0 0 12px 12px;
+  transition:height 1.2s cubic-bezier(0.4,0,0.2,1);
+}
+.soil-icon{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:2rem;opacity:0.4;
+}
+.soil-pct-label{
+  position:absolute;top:8px;right:10px;
+  font-family:var(--font-mono);
+  font-size:0.8rem;
+  color:var(--text);
+  background:rgba(255,255,255,0.75);
+  padding:2px 7px;
+  border-radius:6px;
+}
+
+/* ── ENERGY VISUAL ─────────────────────────────── */
+.energy-flow{
+  display:flex;align-items:center;justify-content:center;
+  gap:8px;
+  padding:16px 0;
+}
+.energy-node{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:10px 14px;
+  background:var(--fog);
+  border:1px solid var(--border);
+  border-radius:12px;
+  min-width:72px;
+  text-align:center;
+}
+.energy-node-icon{font-size:1.4rem}
+.energy-node-label{font-size:0.62rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em}
+.energy-node-val{font-family:var(--font-mono);font-size:0.82rem;color:var(--text)}
+.energy-arrow{
+  font-size:1rem;
+  color:var(--mist);
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+}
+.energy-arrow span{
+  font-size:0.6rem;
+  font-family:var(--font-mono);
+  color:var(--text3);
+}
+.energy-arrow.active{color:var(--accent2)}
+.energy-arrow.active span{color:var(--accent2)}
+
+/* ── BATT VISUAL ───────────────────────────────── */
+.batt-wrap{
+  display:flex;align-items:center;gap:10px;
+  margin:8px 0;
+}
+.batt-outer{
+  flex:1;height:20px;
+  border:2px solid var(--border2);
+  border-radius:5px;
+  position:relative;overflow:hidden;
+  background:var(--fog);
+}
+.batt-inner{
+  height:100%;
+  border-radius:3px;
+  transition:width 1s ease,background 0.4s;
+  background:var(--ok);
+}
+.batt-inner.warn{background:var(--warn)}
+.batt-inner.danger{background:var(--danger)}
+.batt-tip{width:5px;height:10px;background:var(--border2);border-radius:0 3px 3px 0;flex-shrink:0}
+.batt-pct{font-family:var(--font-mono);font-size:0.8rem;color:var(--text2);min-width:36px;text-align:right}
+
+/* ── OVERVIEW PAGE HERO ────────────────────────── */
+.hero-card{
+  background:linear-gradient(135deg,#3d5c35 0%,#4a6741 50%,#5c7a52 100%);
+  border-radius:var(--radius);
+  padding:24px;
+  color:#fff;
+  margin-bottom:20px;
+  position:relative;
+  overflow:hidden;
+  box-shadow:var(--shadow-lg);
+}
+.hero-card::before{
+  content:'';position:absolute;top:-30px;right:-30px;
+  width:180px;height:180px;
+  border-radius:50%;
+  background:rgba(255,255,255,0.04);
+}
+.hero-card::after{
+  content:'';position:absolute;bottom:-40px;right:60px;
+  width:120px;height:120px;
+  border-radius:50%;
+  background:rgba(255,255,255,0.03);
+}
+.hero-greeting{font-size:0.75rem;opacity:0.6;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px}
+.hero-title{font-family:var(--font-serif);font-size:1.8rem;margin-bottom:8px;line-height:1.2}
+.hero-status{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.hero-chip{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 10px;border-radius:20px;
+  background:rgba(255,255,255,0.12);
+  font-size:0.72rem;font-weight:500;
+  border:1px solid rgba(255,255,255,0.15);
+}
+.hero-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.5)}
+.hero-dot.active{background:#7dff9d;box-shadow:0 0 6px rgba(125,255,157,0.6)}
+
+/* ── CONTROLS PAGE ─────────────────────────────── */
+.ctrl-card{
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:18px;
+  box-shadow:var(--shadow);
+  display:flex;flex-direction:column;gap:12px;
+}
+.ctrl-label{font-size:0.72rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;font-weight:500}
+.ctrl-desc{font-size:0.8rem;color:var(--text2);line-height:1.4}
+
+/* Toggle switch */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0}
+.toggle-name{font-size:0.84rem;color:var(--text)}
+.toggle{
+  width:40px;height:22px;
+  background:var(--mist);
+  border-radius:11px;
+  position:relative;cursor:pointer;
+  transition:background 0.25s;
+  border:none;outline:none;
+  flex-shrink:0;
+}
+.toggle.on{background:var(--accent)}
+.toggle::after{
+  content:'';position:absolute;
+  width:16px;height:16px;border-radius:50%;
+  background:#fff;top:3px;left:3px;
+  transition:transform 0.25s;
+  box-shadow:0 1px 4px rgba(0,0,0,0.2);
+}
+.toggle.on::after{transform:translateX(18px)}
+
+/* Duration slider */
+.slider-row{display:flex;flex-direction:column;gap:6px}
+.slider-top{display:flex;justify-content:space-between;font-size:0.8rem}
+.slider-top span{color:var(--text2)}
+.slider-top b{color:var(--text);font-family:var(--font-mono)}
+input[type=range]{
+  width:100%;
+  -webkit-appearance:none;
+  height:5px;
+  border-radius:3px;
+  background:var(--fog);
+  outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:16px;height:16px;
+  border-radius:50%;
+  background:var(--accent);
+  cursor:pointer;
+  box-shadow:0 1px 4px rgba(0,0,0,0.2);
+}
+
+/* ── SETTINGS PAGE ─────────────────────────────── */
+.field{margin-bottom:14px}
+.field label{
+  display:block;font-size:0.72rem;color:var(--text3);
+  letter-spacing:0.08em;text-transform:uppercase;
+  margin-bottom:6px;font-weight:500;
+}
+.field input{
+  width:100%;
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:10px;
+  padding:10px 14px;
+  color:var(--text);
+  font-family:var(--font);
+  font-size:0.88rem;
+  outline:none;
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+.field input:focus{
+  border-color:var(--accent2);
+  box-shadow:0 0 0 3px rgba(74,103,65,0.08);
+}
+.field input::placeholder{color:var(--text3)}
+
+/* Threshold rows */
+.thresh-row{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 0;
+  border-bottom:1px solid var(--border);
+}
+.thresh-row:last-child{border-bottom:none}
+.thresh-icon{font-size:1.1rem;flex-shrink:0;width:24px;text-align:center}
+.thresh-info{flex:1}
+.thresh-name{font-size:0.84rem;color:var(--text);font-weight:500}
+.thresh-desc{font-size:0.7rem;color:var(--text3)}
+.thresh-val{font-family:var(--font-mono);font-size:0.82rem;color:var(--accent);text-align:right;min-width:60px}
+
+/* ── MODAL ─────────────────────────────────────── */
+.modal-bg{
+  position:fixed;inset:0;background:rgba(44,56,40,0.35);
+  backdrop-filter:blur(6px);
+  z-index:200;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.25s;
+}
+.modal-bg.open{opacity:1;pointer-events:all}
+.modal{
+  background:var(--surface2);
+  border:1px solid var(--border2);
+  border-radius:20px;
+  padding:28px;
+  width:min(440px,90vw);
+  box-shadow:var(--shadow-lg);
+  transform:translateY(8px);
+  transition:transform 0.25s;
+}
+.modal-bg.open .modal{transform:none}
+.modal-title{
+  font-family:var(--font-serif);
+  font-size:1.3rem;
+  margin-bottom:4px;
+}
+.modal-sub{font-size:0.8rem;color:var(--text3);margin-bottom:20px}
+.modal-actions{display:flex;gap:8px;margin-top:20px}
+
+/* ── ALERT TOAST ───────────────────────────────── */
+.toast-area{
+  position:fixed;top:16px;right:16px;
+  z-index:300;
+  display:flex;flex-direction:column;gap:8px;
+}
+.toast{
+  background:var(--surface2);
+  border:1px solid var(--border2);
+  border-left:4px solid var(--warn);
+  border-radius:12px;
+  padding:12px 16px;
+  box-shadow:var(--shadow-lg);
+  max-width:300px;
+  animation:toast-in 0.3s ease;
+  display:flex;gap:10px;align-items:flex-start;
+}
+.toast.danger{border-left-color:var(--danger)}
+.toast.ok{border-left-color:var(--ok)}
+@keyframes toast-in{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+.toast-icon{font-size:1rem;flex-shrink:0;margin-top:1px}
+.toast-body{flex:1}
+.toast-title{font-size:0.8rem;font-weight:600;color:var(--text);margin-bottom:2px}
+.toast-msg{font-size:0.75rem;color:var(--text2)}
+.toast-close{font-size:0.75rem;color:var(--text3);cursor:pointer;flex-shrink:0;padding:0 2px}
+.toast-close:hover{color:var(--text)}
+
+/* ── ANIMATIONS ────────────────────────────────── */
+@keyframes fade-up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.page.active .card,.page.active .stat-card,.page.active .ctrl-card,.page.active .ia-card,.page.active .hero-card{
+  animation:fade-up 0.3s ease both;
+}
+.page.active .stat-card:nth-child(2){animation-delay:0.04s}
+.page.active .stat-card:nth-child(3){animation-delay:0.08s}
+.page.active .stat-card:nth-child(4){animation-delay:0.12s}
+.page.active .stat-card:nth-child(5){animation-delay:0.16s}
+.page.active .stat-card:nth-child(6){animation-delay:0.20s}
+
+/* Value flash */
+@keyframes val-flash{0%{opacity:0.4}100%{opacity:1}}
+.flashed{animation:val-flash 0.4s ease}
+</style>
+</head>
+<body>
+
+<!-- TOAST AREA -->
+<div class="toast-area" id="toast-area"></div>
+
+<div class="app">
+
+<!-- ══════════════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════════════ -->
+<aside class="sidebar">
+
+  <!-- Header art -->
+  <div class="sidebar-art">
+    <div class="plant-title">Mi<br>Planta</div>
+    <div class="plant-sub">SIRIA v3.2</div>
+    <!-- Organic wave SVG -->
+    <svg viewBox="0 0 260 50" preserveAspectRatio="none" style="height:50px">
+      <path d="M0 30 Q40 10 80 25 Q120 40 160 20 Q200 5 260 22 L260 50 L0 50 Z"
+            fill="#f8f4ee" opacity="0.95"/>
+    </svg>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="sidebar-nav">
+    <div class="nav-section">Planta</div>
+    <div class="nav-item active" onclick="showPage('overview')">
+      <div class="nav-icon">🌿</div> Resumen general
+    </div>
+    <div class="nav-item" onclick="showPage('environment')">
+      <div class="nav-icon">🌡</div> Ambiente
+    </div>
+    <div class="nav-item" onclick="showPage('soil')">
+      <div class="nav-icon">🌱</div> Suelo y nutrientes
+    </div>
+    <div class="nav-item" onclick="showPage('irrigation')">
+      <div class="nav-icon">💧</div> Riego
+      <div class="nav-badge" id="badge-irr">!</div>
+    </div>
+    <div class="nav-item" onclick="showPage('energy')">
+      <div class="nav-icon">⚡</div> Energía solar
+    </div>
+
+    <div class="nav-section">Sistema</div>
+    <div class="nav-item" onclick="showPage('weather')">
+      <div class="nav-icon">🌤</div> Clima exterior
+    </div>
+    <div class="nav-item" onclick="showPage('ai')">
+      <div class="nav-icon">🤖</div> Inteligencia IA
+    </div>
+    <div class="nav-item" onclick="showPage('controls')">
+      <div class="nav-icon">🎛</div> Control remoto
+    </div>
+    <div class="nav-item" onclick="showPage('log')">
+      <div class="nav-icon">📋</div> Registro
+      <div class="nav-badge" id="badge-log">0</div>
+    </div>
+    <div class="nav-item" onclick="showPage('settings')">
+      <div class="nav-icon">⚙️</div> Configuración
+    </div>
+  </nav>
+
+  <!-- Status bottom -->
+  <div class="sidebar-bottom">
+    <div class="conn-row">
+      <div class="conn-label">
+        <div class="conn-dot" id="dot-mqtt"></div>
+        MQTT
+      </div>
+      <div class="conn-label">
+        <div class="conn-dot" id="dot-wifi"></div>
+        <b id="lbl-wifi">WiFi</b>
+      </div>
+      <div class="conn-label">
+        <div class="conn-dot" id="dot-sensor"></div>
+        Sensor
+      </div>
+    </div>
+    <div class="last-seen" id="last-seen">Sin datos aún</div>
+  </div>
+
+</aside>
+
+<!-- ══════════════════════════════════════════════
+     MAIN
+══════════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="page-title" id="page-title-bar">Resumen general</div>
+    <div class="topbar-right">
+      <div class="time-display" id="clock">--:--:--</div>
+      <div class="alert-btn" id="alert-btn-top" onclick="showPage('log')">
+        🔔<div class="badge" id="alert-badge"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scrollable content -->
+  <div class="content">
+
+    <!-- ═══════════ PAGE: OVERVIEW ═══════════ -->
+    <div class="page active" id="page-overview">
+
+      <!-- Hero -->
+      <div class="hero-card">
+        <div class="hero-greeting">Estado actual</div>
+        <div class="hero-title" id="hero-status-title">Esperando datos del sensor...</div>
+        <div class="hero-status">
+          <div class="hero-chip"><div class="hero-dot" id="hero-dot-mqtt"></div><span id="hero-mqtt">MQTT</span></div>
+          <div class="hero-chip"><div class="hero-dot" id="hero-dot-sensor"></div><span id="hero-sensor">Sensor</span></div>
+          <div class="hero-chip" id="hero-hora-chip"><span id="hero-hora">--:--</span></div>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <div class="sec-header">
+        <div class="sec-title">Lecturas del momento</div>
+        <div class="sec-action" onclick="showPage('environment')">Ver todo →</div>
+      </div>
+      <div class="grid-3" style="margin-bottom:20px">
+        <div class="stat-card">
+          <div class="stat-icon">🌡</div>
+          <div class="stat-label">Temperatura</div>
+          <div><span class="stat-value" id="ov-temp">--</span><span class="stat-unit">°C</span></div>
+          <div class="stat-sub" id="ov-temp-sub">—</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="bar-ov-temp" style="width:0%;background:var(--sun)"></div></div>
+        </div>
+        <div class="stat-card water">
+          <div class="stat-icon">💧</div>
+          <div class="stat-label">Humedad aire</div>
+          <div><span class="stat-value" id="ov-hum">--</span><span class="stat-unit">%</span></div>
+          <div class="stat-sub" id="ov-hum-sub">—</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="bar-ov-hum" style="width:0%;background:var(--water)"></div></div>
+        </div>
+        <div class="stat-card sun">
+          <div class="stat-icon">☀️</div>
+          <div class="stat-label">Luminosidad</div>
+          <div><span class="stat-value" id="ov-lux">--</span><span class="stat-unit">lx</span></div>
+          <div class="stat-sub" id="ov-lux-sub">—</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="bar-ov-lux" style="width:0%;background:var(--sun)"></div></div>
+        </div>
+        <div class="stat-card earth">
+          <div class="stat-icon">🌱</div>
+          <div class="stat-label">Humedad suelo</div>
+          <div><span class="stat-value" id="ov-suelo">--</span><span class="stat-unit">%</span></div>
+          <div class="stat-sub" id="ov-suelo-sub">—</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="bar-ov-suelo" style="width:0%;background:var(--earth)"></div></div>
+        </div>
+        <div class="stat-card air">
+          <div class="stat-icon">🌫</div>
+          <div class="stat-label">Calidad aire</div>
+          <div><span class="stat-value" id="ov-mq">--</span><span class="stat-unit">V</span></div>
+          <div class="stat-sub" id="ov-mq-sub">MQ135</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="bar-ov-mq" style="width:0%;background:var(--air)"></div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div class="stat-label">Presión</div>
+          <div><span class="stat-value" id="ov-pres">--</span><span class="stat-unit">hPa</span></div>
+          <div class="stat-sub">Atmosférica</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="bar-ov-pres" style="width:50%;background:var(--accent2)"></div></div>
+        </div>
+      </div>
+
+      <!-- Row: IA + Clima rápido -->
+      <div class="grid-2">
+        <div class="ia-card">
+          <div class="ia-header"><div class="ia-badge">IA — Predicción</div></div>
+          <div class="ia-pred" id="ov-ia-pred">Calibrando sensores...</div>
+          <div class="ia-text" id="ov-ia-text">La IA local analiza la presión barométrica y la humedad para predecir el clima.</div>
+          <div class="ia-fault" id="ov-ia-fault" style="display:none">
+            <span>⚠</span><span id="ov-ia-fault-txt"></span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><div class="card-title-icon">🌤</div>Clima exterior</div>
+            <div class="chip neutral" id="ov-clima-chip">API</div>
+          </div>
+          <div class="weather-hero" id="ov-weather-hero" style="margin-bottom:10px">
+            <div class="weather-icon-big" id="ov-w-icon">🌡</div>
+            <div>
+              <div class="weather-temp-big"><span id="ov-w-temp">--</span>°</div>
+              <div class="weather-desc-big" id="ov-w-desc">Sin conexión a API</div>
+              <div class="weather-loc">Aguascalientes, MX</div>
+            </div>
+          </div>
+          <div class="rain-prob">
+            <div class="rain-pct"><span id="ov-w-prob">--</span>%</div>
+            <div class="rain-info">
+              <div class="rain-label">Prob. lluvia próximas 12h</div>
+              <div class="rain-bar"><div class="rain-fill" id="ov-rain-fill" style="width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ PAGE: ENVIRONMENT ═══════════ -->
+    <div class="page" id="page-environment">
+      <div class="sec-header"><div class="sec-title">Ambiente y aire</div></div>
+      <div class="grid-4" style="margin-bottom:20px">
+        <div class="stat-card">
+          <div class="stat-icon">🌡</div>
+          <div class="stat-label">Temperatura</div>
+          <div><span class="stat-value" id="env-temp">--</span><span class="stat-unit">°C</span></div>
+          <div class="stat-sub" id="env-temp-sub">—</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="bar-env-temp" style="width:0%;background:var(--sun)"></div></div>
+        </div>
+        <div class="stat-card water">
+          <div class="stat-icon">💧</div>
+          <div class="stat-label">Humedad</div>
+          <div><span class="stat-value" id="env-hum">--</span><span class="stat-unit">%</span></div>
+          <div class="stat-sub" id="env-hum-sub">—</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="bar-env-hum" style="width:0%;background:var(--water)"></div></div>
+        </div>
+        <div class="stat-card sun">
+          <div class="stat-icon">☀️</div>
+          <div class="stat-label">Luminosidad</div>
+          <div><span class="stat-value" id="env-lux">--</span><span class="stat-unit">lx</span></div>
+          <div class="stat-sub" id="env-lux-sub">—</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="bar-env-lux" style="width:0%;background:var(--sun)"></div></div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">📊</div>
+          <div class="stat-label">Presión</div>
+          <div><span class="stat-value" id="env-pres">--</span><span class="stat-unit">hPa</span></div>
+          <div class="stat-sub">Atmosférica</div>
+          <div class="stat-bar"><div class="stat-bar-fill" id="bar-env-pres" style="width:50%;background:var(--accent2)"></div></div>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><div class="card-title-icon">🌫</div>Calidad del aire</div><div class="chip" id="air-chip">--</div></div>
+          <div class="prog-row">
+            <div class="prog-top"><span class="prog-name">MQ135 (voltaje)</span><span class="prog-val" id="env-mq-v">-- V</span></div>
+            <div class="prog-track"><div class="prog-fill" id="bar-mq-v" style="width:0%;background:var(--air)"></div></div>
+          </div>
+          <div style="margin-top:12px;font-size:0.82rem;color:var(--text2)" id="env-mq-desc">
+            La calidad del aire se mide con el sensor MQ135. Valores por encima de 2.5V indican degradación del ambiente.
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title"><div class="card-title-icon">⏰</div>Hora del sistema</div></div>
+          <div style="font-family:var(--font-serif);font-size:2.4rem;color:var(--text);margin:8px 0" id="env-hora">--:--:--</div>
+          <div style="font-size:0.78rem;color:var(--text3)">DS3231 — Reloj tiempo real</div>
+          <div style="margin-top:14px">
+            <div class="prog-row">
+              <div class="prog-top"><span class="prog-name">Temperatura interna</span><span class="prog-val" id="env-temp2">--°C</span></div>
+              <div class="prog-track"><div class="prog-fill" id="bar-env-temp2" style="width:0%;background:var(--sun)"></div></div>
+            </div>
+            <div class="prog-row">
+              <div class="prog-top"><span class="prog-name">Humedad aire</span><span class="prog-val" id="env-hum2">--%</span></div>
+              <div class="prog-track"><div class="prog-fill" id="bar-env-hum2" style="width:0%;background:var(--water)"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ PAGE: SOIL ═══════════ -->
+    <div class="page" id="page-soil">
+      <div class="sec-header"><div class="sec-title">Suelo y nutrientes</div></div>
+      <div class="grid-2" style="margin-bottom:20px">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title"><div class="card-title-icon">🌱</div>Humedad del suelo</div>
+            <div class="chip" id="soil-chip">--</div>
+          </div>
+          <div class="soil-glass">
+            <div class="soil-fill-layer" id="soil-fill" style="height:0%"></div>
+            <div class="soil-icon">🌱</div>
+            <div class="soil-pct-label" id="soil-pct-label">--%</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--text3);margin:6px 0">
+            <span>Seco</span><span>Ideal</span><span>Saturado</span>
+          </div>
+          <div class="prog-track" style="height:8px;margin-bottom:10px">
+            <div class="prog-fill" id="soil-bar" style="width:0%;background:linear-gradient(90deg,var(--earth),var(--sage))"></div>
+          </div>
+          <div style="font-size:0.82rem;color:var(--text2)" id="soil-status-text">
+            Conectando con el sensor de suelo...
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title"><div class="card-title-icon">🧪</div>NPK — Nutrientes</div></div>
+          <div class="npk-grid">
+            <div class="npk-card">
+              <div class="npk-letter N">N</div>
+              <div class="npk-name">Nitrógeno</div>
+              <div class="npk-val" id="npk-n">--</div>
+            </div>
+            <div class="npk-card">
+              <div class="npk-letter P">P</div>
+              <div class="npk-name">Fósforo</div>
+              <div class="npk-val" id="npk-p">--</div>
+            </div>
+            <div class="npk-card">
+              <div class="npk-letter K">K</div>
+              <div class="npk-name">Potasio</div>
+              <div class="npk-val" id="npk-k">--</div>
+            </div>
+          </div>
+          <div style="margin-top:14px">
+            <div class="prog-row">
+              <div class="prog-top"><span class="prog-name">Nitrógeno</span><span class="prog-val" id="npk-n-v">--</span></div>
+              <div class="prog-track"><div class="prog-fill" id="npk-n-bar" style="width:0%;background:#4a7fa8"></div></div>
+            </div>
+            <div class="prog-row">
+              <div class="prog-top"><span class="prog-name">Fósforo</span><span class="prog-val" id="npk-p-v">--</span></div>
+              <div class="prog-track"><div class="prog-fill" id="npk-p-bar" style="width:0%;background:#8a6e4a"></div></div>
+            </div>
+            <div class="prog-row">
+              <div class="prog-top"><span class="prog-name">Potasio</span><span class="prog-val" id="npk-k-v">--</span></div>
+              <div class="prog-track"><div class="prog-fill" id="npk-k-bar" style="width:0%;background:#6b8f5e"></div></div>
+            </div>
+          </div>
+          <div style="margin-top:10px;padding:8px 10px;background:var(--fog);border-radius:8px;font-size:0.72rem;color:var(--text3)">
+            📡 Sensor NPK RS485 — fase 2 del proyecto
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ PAGE: IRRIGATION ═══════════ -->
+    <div class="page" id="page-irrigation">
+      <div class="sec-header"><div class="sec-title">Riego y fertilización</div></div>
+      <div class="grid-2" style="margin-bottom:20px">
+        <div class="ctrl-card">
+          <div class="ctrl-label">💧 Bomba de agua</div>
+          <div class="ctrl-desc">Activa el riego manual. Selecciona la duración antes de iniciar.</div>
+          <div class="slider-row">
+            <div class="slider-top"><span>Duración</span><b id="dur-agua-val">30s</b></div>
+            <input type="range" min="5" max="120" value="30" id="dur-agua" oninput="document.getElementById('dur-agua-val').textContent=this.value+'s'"/>
+          </div>
+          <div class="btn-row">
+            <button class="btn water full" onclick="cmdRiego('agua')">💧 Iniciar riego</button>
+          </div>
+        </div>
+        <div class="ctrl-card">
+          <div class="ctrl-label">🌿 Bomba fertilizante</div>
+          <div class="ctrl-desc">Activa la dosificación de fertilizante líquido.</div>
+          <div class="slider-row">
+            <div class="slider-top"><span>Duración</span><b id="dur-fert-val">15s</b></div>
+            <input type="range" min="5" max="60" value="15" id="dur-fert" oninput="document.getElementById('dur-fert-val').textContent=this.value+'s'"/>
+          </div>
+          <div class="btn-row">
+            <button class="btn primary full" onclick="cmdRiego('fert')">🌿 Fertilizar</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title"><div class="card-title-icon">🤖</div>Riego automático</div></div>
+        <div class="toggle-row">
+          <div class="toggle-name">Activar riego automático por IA</div>
+          <button class="toggle" id="tog-auto" onclick="toggleAuto()"></button>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-name">Posponer si hay lluvia prevista (&gt;50%)</div>
+          <button class="toggle on" id="tog-rain"></button>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-name">Fertilización automática semanal</div>
+          <button class="toggle" id="tog-fert-auto"></button>
+        </div>
+        <div style="margin-top:14px;padding:12px;background:var(--fog);border-radius:10px;font-size:0.8rem;color:var(--text2)">
+          El riego automático se activa cuando la humedad del suelo cae por debajo del umbral configurado (actualmente: ADC &gt; 1800).
+        </div>
+        <div style="margin-top:10px">
+          <button class="btn danger" onclick="cmd({stop:true})">⏹ Detener todo ahora</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ PAGE: ENERGY ═══════════ -->
+    <div class="page" id="page-energy">
+      <div class="sec-header"><div class="sec-title">Energía solar</div></div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-header"><div class="card-title"><div class="card-title-icon">⚡</div>Flujo energético</div></div>
+        <div class="energy-flow">
+          <div class="energy-node">
+            <div class="energy-node-icon">☀️</div>
+            <div class="energy-node-label">Panel</div>
+            <div class="energy-node-val" id="en-panel">-- A</div>
+          </div>
+          <div class="energy-arrow" id="arr-panel">→<span id="arr-panel-lbl">--</span></div>
+          <div class="energy-node">
+            <div class="energy-node-icon">⚡</div>
+            <div class="energy-node-label">MPPT</div>
+            <div class="energy-node-val">3S</div>
+          </div>
+          <div class="energy-arrow" id="arr-batt">→<span id="arr-batt-lbl">--</span></div>
+          <div class="energy-node">
+            <div class="energy-node-icon">🔋</div>
+            <div class="energy-node-label">Batería</div>
+            <div class="energy-node-val" id="en-batt">-- A</div>
+          </div>
+          <div class="energy-arrow">→<span>carga</span></div>
+          <div class="energy-node">
+            <div class="energy-node-icon">💡</div>
+            <div class="energy-node-label">Sistema</div>
+            <div class="energy-node-val" id="en-sys">SIRIA</div>
+          </div>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><div class="card-title-icon">🔋</div>Estado de batería</div><div class="chip" id="batt-chip">--</div></div>
+          <div class="batt-wrap">
+            <div class="batt-outer">
+              <div class="batt-inner" id="batt-fill-en" style="width:0%"></div>
+            </div>
+            <div class="batt-tip"></div>
+            <div class="batt-pct" id="batt-pct-en">--%</div>
+          </div>
+          <div class="prog-row" style="margin-top:12px">
+            <div class="prog-top"><span class="prog-name">Corriente batería</span><span class="prog-val" id="en-ibatt-v">-- A</span></div>
+            <div class="prog-track"><div class="prog-fill" id="bar-ibatt" style="width:0%;background:var(--ok)"></div></div>
+          </div>
+          <div class="prog-row">
+            <div class="prog-top"><span class="prog-name">Corriente panel</span><span class="prog-val" id="en-ipanel-v">-- A</span></div>
+            <div class="prog-track"><div class="prog-fill" id="bar-ipanel" style="width:0%;background:var(--sun)"></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title"><div class="card-title-icon">☀️</div>Panel solar 20W</div></div>
+          <div style="font-size:0.82rem;color:var(--text2);line-height:1.6">
+            <div style="margin-bottom:8px" id="en-panel-status">—</div>
+          </div>
+          <div class="prog-row">
+            <div class="prog-top"><span class="prog-name">Luminosidad actual</span><span class="prog-val" id="en-lux-v">-- lx</span></div>
+            <div class="prog-track"><div class="prog-fill" id="bar-en-lux" style="width:0%;background:var(--sun)"></div></div>
+          </div>
+          <div style="margin-top:12px;padding:10px;background:var(--fog);border-radius:8px;font-size:0.75rem;color:var(--text3)">
+            Solar tracker: 3 servos MG90 — azimut + elevación + sombra automática
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ PAGE: WEATHER ═══════════ -->
+    <div class="page" id="page-weather">
+      <div class="sec-header"><div class="sec-title">Clima exterior</div></div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><div class="card-title-icon">🌤</div>OpenWeatherMap</div><div class="chip neutral">Aguascalientes</div></div>
+          <div class="weather-hero">
+            <div class="weather-icon-big" id="w-icon-big">🌡</div>
+            <div>
+              <div class="weather-temp-big"><span id="w-temp-big">--</span>°C</div>
+              <div class="weather-desc-big" id="w-desc-big">Sin datos</div>
+              <div class="weather-loc">Aguascalientes, México</div>
+            </div>
+          </div>
+          <div class="grid-2" style="gap:8px">
+            <div class="npk-card"><div class="npk-letter" style="font-size:1rem;color:var(--water)">💧</div><div class="npk-name">Humedad ext.</div><div class="npk-val"><span id="w-hum-big">--</span>%</div></div>
+            <div class="npk-card"><div class="npk-letter" style="font-size:1rem;color:var(--accent2)">🌧</div><div class="npk-name">Precip. 12h</div><div class="npk-val"><span id="w-lluvia-big">--</span> mm</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title"><div class="card-title-icon">🌧</div>Probabilidad de lluvia</div></div>
+          <div class="rain-prob" style="margin-bottom:16px">
+            <div class="rain-pct"><span id="w-prob-big">--</span>%</div>
+            <div class="rain-info">
+              <div class="rain-label">Próximas 12 horas</div>
+              <div class="rain-bar"><div class="rain-fill" id="rain-fill-big" style="width:0%"></div></div>
+            </div>
+          </div>
+          <div class="ia-card" style="margin-bottom:0">
+            <div class="ia-header"><div class="ia-badge">Recomendación IA</div></div>
+            <div class="ia-text" id="w-ia-rec">Esperando datos de clima y sensores...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ PAGE: AI ═══════════ -->
+    <div class="page" id="page-ai">
+      <div class="sec-header"><div class="sec-title">Inteligencia artificial</div></div>
+      <div class="grid-2" style="margin-bottom:16px">
+        <div class="ia-card">
+          <div class="ia-header"><div class="ia-badge">Predicción climática</div></div>
+          <div class="ia-pred" id="ai-pred">Calibrando datos...</div>
+          <div class="ia-text" style="margin-top:8px">
+            Análisis del barómetro BMP280 y tendencias de humedad para predecir condiciones en las próximas horas.
+          </div>
+          <div style="margin-top:12px">
+            <div class="prog-row">
+              <div class="prog-top"><span class="prog-name">Tendencia presión</span><span class="prog-val" id="ai-dpres">-- hPa</span></div>
+              <div class="prog-track"><div class="prog-fill" id="ai-dpres-bar" style="width:50%;background:var(--accent2)"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="ia-card" style="border-left-color:var(--earth)">
+          <div class="ia-header"><div class="ia-badge" style="color:var(--earth);border-color:rgba(122,92,61,0.3)">Diagnóstico sistema</div></div>
+          <div class="ia-pred" id="ai-fallas" style="color:var(--ok)">Sin fallas detectadas</div>
+          <div class="ia-text" style="margin-top:8px" id="ai-fallas-desc">
+            El sistema monitorea corrientes del panel solar, consumo de batería y calidad del aire de forma continua.
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title"><div class="card-title-icon">📈</div>Historial de análisis</div></div>
+        <div class="timeline" id="ai-timeline" style="max-height:280px;overflow-y:auto">
+          <div class="tl-item"><div class="tl-dot info"></div><div class="tl-time">--:--</div><div class="tl-msg">Esperando lecturas del sensor WROOM-32...</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ PAGE: CONTROLS ═══════════ -->
+    <div class="page" id="page-controls">
+      <div class="sec-header"><div class="sec-title">Control remoto</div></div>
+      <div class="grid-3" style="margin-bottom:16px">
+        <div class="ctrl-card">
+          <div class="ctrl-label">💧 Riego</div>
+          <div class="ctrl-desc">Control manual de la bomba de agua.</div>
+          <div class="btn-row" style="margin-top:auto">
+            <button class="btn water full" onclick="cmd({bomba_agua:true,duracion:parseInt(document.getElementById('dur-agua').value)})">
+              Activar agua
+            </button>
+          </div>
+        </div>
+        <div class="ctrl-card">
+          <div class="ctrl-label">🌿 Fertilizante</div>
+          <div class="ctrl-desc">Control manual de la bomba de fertilizante.</div>
+          <div class="btn-row" style="margin-top:auto">
+            <button class="btn primary full" onclick="cmd({bomba_fert:true})">
+              Fertilizar
+            </button>
+          </div>
+        </div>
+        <div class="ctrl-card">
+          <div class="ctrl-label">⏹ Parada</div>
+          <div class="ctrl-desc">Detiene todos los actuadores inmediatamente.</div>
+          <div class="btn-row" style="margin-top:auto">
+            <button class="btn danger full" onclick="cmd({stop:true})">
+              Parar todo
+            </button>
+          </div>
+        </div>
+        <div class="ctrl-card">
+          <div class="ctrl-label">🔔 Bocina</div>
+          <div class="ctrl-desc">Prueba los tonos del sistema MAX98357A.</div>
+          <div class="btn-row">
+            <button class="btn sm" onclick="cmd({bocina:'ok'})">OK</button>
+            <button class="btn sm" onclick="cmd({bocina:'info'})">Info</button>
+            <button class="btn sm" onclick="cmd({bocina:'alerta'})">Alerta</button>
+          </div>
+        </div>
+        <div class="ctrl-card">
+          <div class="ctrl-label">🌐 Clima</div>
+          <div class="ctrl-desc">Forzar actualización de datos OpenWeatherMap.</div>
+          <div class="btn-row" style="margin-top:auto">
+            <button class="btn full" onclick="cmd({actualizar_clima:true})">
+              Actualizar clima
+            </button>
+          </div>
+        </div>
+        <div class="ctrl-card">
+          <div class="ctrl-label">📡 MQTT</div>
+          <div class="ctrl-desc">Estado de la conexión al broker en la nube.</div>
+          <div style="font-size:0.78rem;color:var(--text3);margin-top:8px;font-family:var(--font-mono)" id="ctrl-mqtt-status">
+            Sin conexión
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ PAGE: LOG ═══════════ -->
+    <div class="page" id="page-log">
+      <div class="sec-header">
+        <div class="sec-title">Registro de eventos</div>
+        <button class="btn sm" onclick="clearLog()">Limpiar</button>
+      </div>
+      <div class="card">
+        <div class="timeline" id="log-timeline" style="max-height:calc(100vh - 220px);overflow-y:auto">
+          <div class="tl-item"><div class="tl-dot info"></div><div class="tl-time" id="log-init-t"></div><div class="tl-msg">Sistema iniciado — esperando conexión MQTT</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ PAGE: SETTINGS ═══════════ -->
+    <div class="page" id="page-settings">
+      <div class="sec-header"><div class="sec-title">Configuración</div></div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title"><div class="card-title-icon">📡</div>Conexión MQTT</div></div>
+          <div class="field"><label>Broker host</label><input id="cfg-host" placeholder="abc.hivemq.cloud"/></div>
+          <div class="field"><label>Puerto WSS</label><input id="cfg-port" type="number" value="8884"/></div>
+          <div class="field"><label>Usuario</label><input id="cfg-user"/></div>
+          <div class="field"><label>Contraseña</label><input id="cfg-pass" type="password"/></div>
+          <div class="field"><label>ID cliente web</label><input id="cfg-id" value="SIRIA_WEB"/></div>
+          <button class="btn primary full" onclick="saveAndConnect()">Conectar y guardar</button>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title"><div class="card-title-icon">⚠️</div>Umbrales de alerta</div></div>
+          <div class="thresh-row">
+            <div class="thresh-icon">🌡</div>
+            <div class="thresh-info"><div class="thresh-name">Temperatura máxima</div><div class="thresh-desc">Por encima → alerta crítica</div></div>
+            <div class="thresh-val">38 °C</div>
+          </div>
+          <div class="thresh-row">
+            <div class="thresh-icon">🌡</div>
+            <div class="thresh-info"><div class="thresh-name">Temperatura mínima</div><div class="thresh-desc">Por debajo → alerta</div></div>
+            <div class="thresh-val">5 °C</div>
+          </div>
+          <div class="thresh-row">
+            <div class="thresh-icon">💧</div>
+            <div class="thresh-info"><div class="thresh-name">Humedad mínima</div><div class="thresh-desc">Ambiente muy seco</div></div>
+            <div class="thresh-val">20 %</div>
+          </div>
+          <div class="thresh-row">
+            <div class="thresh-icon">🌱</div>
+            <div class="thresh-info"><div class="thresh-name">Suelo seco</div><div class="thresh-desc">ADC raw (invertido)</div></div>
+            <div class="thresh-val">&gt;1800</div>
+          </div>
+          <div class="thresh-row">
+            <div class="thresh-icon">🌫</div>
+            <div class="thresh-info"><div class="thresh-name">Calidad aire</div><div class="thresh-desc">MQ135 voltaje máx</div></div>
+            <div class="thresh-val">2.5 V</div>
+          </div>
+          <div style="margin-top:12px;padding:10px;background:var(--fog);border-radius:8px;font-size:0.75rem;color:var(--text3)">
+            Los umbrales se configuran en el código del ESP32-S3. Esta vista es de solo lectura por ahora.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- .content -->
+</div><!-- .main -->
+</div><!-- .app -->
+
+<script>
+// ============================================================
+//  SIRIA Dashboard — Web App
+//  MQTT sobre WebSocket → HiveMQ Cloud
+//  Sin IP hardcodeada — credenciales en localStorage
+// ============================================================
+
+const STORAGE_KEY = 'siria_mqtt_v3';
+const TOPICS = {
+  SENSORES : 'siria/sensores',
+  CLIMA    : 'siria/clima',
+  ALERTAS  : 'siria/alertas',
+  CMD      : 'siria/cmd',
+  ESTADO   : 'siria/estado'
+};
+
+let mqttClient   = null;
+let isConnected  = false;
+let alertCount   = 0;
+let logCount     = 0;
+
+// Historial IA local
+const histPres = [], histHum = [];
+
+// ── NAVEGACIÓN ────────────────────────────────────────────
+const PAGE_TITLES = {
+  overview:'Resumen general', environment:'Ambiente',
+  soil:'Suelo y nutrientes', irrigation:'Riego',
+  energy:'Energía solar', weather:'Clima exterior',
+  ai:'Inteligencia IA', controls:'Control remoto',
+  log:'Registro', settings:'Configuración'
+};
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-'+id);
+  if (page) page.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick')?.includes("'"+id+"'")) n.classList.add('active');
+  });
+  const tb = document.getElementById('page-title-bar');
+  if (tb) tb.textContent = PAGE_TITLES[id] || id;
+  if (id === 'log') { alertCount = 0; updateAlertBadge(); }
+}
+
+// ── RELOJ ─────────────────────────────────────────────────
+function tick() {
+  const t = new Date().toLocaleTimeString('es-MX',{hour12:false});
+  const el = document.getElementById('clock');
+  if (el) el.textContent = t;
+}
+setInterval(tick,1000); tick();
+document.getElementById('log-init-t').textContent =
+  new Date().toLocaleTimeString('es-MX',{hour12:false});
+
+// ── MQTT CONFIG ───────────────────────────────────────────
+function loadCfg() {
+  try {
+    const s = localStorage.getItem(STORAGE_KEY);
+    if (s) return JSON.parse(s);
+  } catch(e){}
+  return {
+    host:'3df571ee83a2422bb3c9b409b4c80193.s1.eu.hivemq.cloud',
+    port:8884, user:'SIRIAriegos', pass:'Leogasiriaesp3145',
+    id:'SIRIA_WEB_'+Math.random().toString(36).slice(2,5)
+  };
+}
+
+function saveCfg(c){ localStorage.setItem(STORAGE_KEY, JSON.stringify(c)); }
+
+function saveAndConnect() {
+  const c = {
+    host: document.getElementById('cfg-host').value.trim(),
+    port: parseInt(document.getElementById('cfg-port').value)||8884,
+    user: document.getElementById('cfg-user').value.trim(),
+    pass: document.getElementById('cfg-pass').value,
+    id:   document.getElementById('cfg-id').value.trim()||'SIRIA_WEB'
+  };
+  saveCfg(c);
+  if (mqttClient) mqttClient.end(true);
+  connectMQTT(c);
+  addLog('Configuración guardada — reconectando...','info');
+}
+
+// ── MQTT ──────────────────────────────────────────────────
+function connectMQTT(cfg) {
+  cfg = cfg || loadCfg();
+  // Precargar campos en settings
+  document.getElementById('cfg-host').value = cfg.host;
+  document.getElementById('cfg-port').value = cfg.port;
+  document.getElementById('cfg-user').value = cfg.user;
+  document.getElementById('cfg-id').value   = cfg.id;
+
+  const url = `wss://${cfg.host}:${cfg.port}/mqtt`;
+  addLog('Conectando a HiveMQ Cloud...','info');
+
+  try {
+    mqttClient = mqtt.connect(url,{
+      username:cfg.user, password:cfg.pass, clientId:cfg.id,
+      clean:true, reconnectPeriod:6000, connectTimeout:12000
+    });
+  } catch(e){ addLog('Error al conectar: '+e.message,'danger'); return; }
+
+  mqttClient.on('connect',()=>{
+    isConnected=true;
+    setDot('dot-mqtt','ok');
+    document.getElementById('ctrl-mqtt-status').textContent =
+      'Conectado — '+cfg.host;
+    Object.values(TOPICS).forEach(t=>{ if(t!==TOPICS.CMD) mqttClient.subscribe(t,{qos:1}); });
+    addLog('MQTT conectado ✓','ok');
+    toast('Conectado','SIRIA en línea','ok');
+  });
+
+  mqttClient.on('message',(topic,payload)=>{
+    try{ onMessage(topic, JSON.parse(payload.toString())); }
+    catch(e){ addLog('Payload inválido en '+topic,'warn'); }
+  });
+
+  mqttClient.on('error',(e)=>{
+    setDot('dot-mqtt','err');
+    addLog('Error MQTT: '+e.message,'danger');
+  });
+
+  mqttClient.on('offline',()=>{
+    isConnected=false;
+    setDot('dot-mqtt','err');
+    setDot('dot-sensor','err');
+    addLog('MQTT desconectado — reintentando...','warn');
+  });
+
+  mqttClient.on('reconnect',()=>{
+    setDot('dot-mqtt','warn');
+    addLog('Reconectando...','warn');
+  });
+}
+
+function cmd(payload) {
+  if (!isConnected){ toast('Sin conexión','Conecta primero el MQTT','danger'); return; }
+  mqttClient.publish(TOPICS.CMD, JSON.stringify(payload),{qos:1});
+  addLog('CMD → '+JSON.stringify(payload),'ok');
+}
+
+// ── ON MESSAGE ────────────────────────────────────────────
+function onMessage(topic, d) {
+  const now = new Date().toLocaleTimeString('es-MX',{hour12:false});
+
+  if (topic === TOPICS.SENSORES) {
+    renderSensores(d, now);
+    setDot('dot-sensor','ok');
+    setDot('dot-wifi', d.wifi_ok ? 'ok' : 'warn');
+    el('lbl-wifi').textContent = d.wifi_ok ? (d.wifi_red||'WiFi').substring(0,14) : 'Sin WiFi';
+    el('last-seen').textContent = 'Actualizado: '+now;
+    addLog(`T:${d.temp?.toFixed(1)}°C H:${d.hum?.toFixed(0)}% Suelo:${d.suelo} Luz:${Math.round(d.lux||0)}lx`,'info');
+
+  } else if (topic === TOPICS.CLIMA) {
+    renderClima(d);
+    addLog('Clima actualizado: '+(d.desc||''),'ok');
+
+  } else if (topic === TOPICS.ALERTAS) {
+    const msg = d.msg || 'Alerta del sistema';
+    toast('⚠ Alerta SIRIA', msg, 'danger');
+    addLog('ALERTA: '+msg,'danger');
+    alertCount++;
+    updateAlertBadge();
+
+  } else if (topic === TOPICS.ESTADO) {
+    addLog(`Heartbeat — uptime ${Math.floor((d.uptime_s||0)/60)}m`,'info');
+  }
+}
+
+// ── RENDER SENSORES ───────────────────────────────────────
+function renderSensores(d, ts) {
+  // Historial IA
+  if (d.pres) histPres.push(d.pres);
+  if (d.hum)  histHum.push(d.hum);
+  if (histPres.length > 12) histPres.shift();
+  if (histHum.length  > 12) histHum.shift();
+
+  const temp  = d.temp  || 0;
+  const hum   = d.hum   || 0;
+  const lux   = d.lux   || 0;
+  const pres  = d.pres  || 1013;
+  const mq    = d.mq135 || 0;
+  const suelo = d.suelo || 0;
+  const ibatt = d.ibatt || 0;
+  const ipanel= d.ipanel|| 0;
+
+  // Estado de temperatura
+  const tempState = temp>38?'danger':temp<5?'warn':'ok';
+  const humState  = hum<20?'warn':'ok';
+  const mqState   = mq>2.5?'danger':'ok';
+  const soilPct   = Math.max(0,Math.min(100,Math.round((4095-suelo)/4095*100)));
+  const soilState = suelo>1800?'danger':'ok';
+
+  // ── Overview ──
+  setV('ov-temp',  temp.toFixed(1), tempState);
+  setBar('bar-ov-temp', Math.min(temp/50*100,100));
+  el('ov-temp-sub').textContent = temp>38?'⚠ Demasiado caliente':temp<5?'⚠ Muy frío':'Temperatura óptima';
+
+  setV('ov-hum',   hum.toFixed(1),  humState);
+  setBar('bar-ov-hum', hum, 'var(--water)');
+  el('ov-hum-sub').textContent = hum<20?'⚠ Muy seco':hum<40?'Humedad baja':'Ambiente OK';
+
+  const luxTxt = lux>=1000?(lux/1000).toFixed(1)+'k':Math.round(lux).toString();
+  setV('ov-lux', luxTxt);
+  setBar('bar-ov-lux', Math.min(lux/100000*100,100), 'var(--sun)');
+  el('ov-lux-sub').textContent = lux>50000?'Luz solar intensa':lux>10000?'Soleado':lux>1000?'Parcialmente nublado':'Poca luz';
+
+  setV('ov-suelo', soilPct+'', soilState);
+  setBar('bar-ov-suelo', soilPct, 'var(--earth)');
+  el('ov-suelo-sub').textContent = suelo>1800?'⚠ Necesita riego':'Humedad adecuada';
+  if (suelo>1800){ el('badge-irr').classList.add('show'); }
+  else { el('badge-irr').classList.remove('show'); }
+
+  setV('ov-mq', mq.toFixed(2), mqState);
+  setBar('bar-ov-mq', Math.min(mq/3.3*100,100), mq>2.5?'var(--danger)':'var(--air)');
+  el('ov-mq-sub').textContent = mq>2.5?'⚠ Aire degradado':'Calidad buena';
+
+  setV('ov-pres', pres.toFixed(0));
+  setBar('bar-ov-pres', 50, 'var(--accent2)');
+
+  // Hero
+  const heroTitle = suelo>1800 ? '🌱 Tu planta necesita riego' :
+                    temp>38    ? '🌡 Temperatura muy alta' :
+                    temp<5     ? '❄️ Temperatura muy baja' :
+                    mq>2.5     ? '🌫 Calidad del aire baja' :
+                                 '✓ Tu planta está bien';
+  el('hero-status-title').textContent = heroTitle;
+  el('hero-hora').textContent = d.hora ? d.hora.substring(0,5) : '--:--';
+
+  // IA pred
+  const pred = d.ia_pred || calcIAPred();
+  el('ov-ia-pred').textContent = pred;
+  el('ai-pred').textContent    = pred;
+  el('ov-ia-text').textContent = 'Análisis barométrico en tiempo real basado en '+histPres.length+' lecturas.';
+
+  const fallas = d.ia_fallas || 'Sin fallas';
+  if (fallas !== 'Sin fallas') {
+    el('ov-ia-fault').style.display='flex';
+    el('ov-ia-fault-txt').textContent = fallas;
+    el('ai-fallas').textContent = fallas;
+    el('ai-fallas').style.color = 'var(--warn)';
+    el('ai-fallas-desc').textContent = fallas;
+  } else {
+    el('ov-ia-fault').style.display='none';
+    el('ai-fallas').textContent = 'Sin fallas detectadas';
+    el('ai-fallas').style.color = 'var(--ok)';
+    el('ai-fallas-desc').textContent = 'El sistema monitorea corrientes del panel solar, consumo de batería y calidad del aire de forma continua.';
+  }
+
+  // IA AI timeline
+  addAiLog(`T:${temp.toFixed(1)}°C | Suelo:${soilPct}% | Pred:${pred}`,'info');
+
+  // ── Environment ──
+  setV('env-temp', temp.toFixed(1), tempState);
+  setBar('bar-env-temp', Math.min(temp/50*100,100), 'var(--sun)');
+  el('env-temp-sub').textContent = el('ov-temp-sub').textContent;
+  setV('env-hum', hum.toFixed(1), humState);
+  setBar('bar-env-hum', hum, 'var(--water)');
+  el('env-hum-sub').textContent = el('ov-hum-sub').textContent;
+  setV('env-lux', luxTxt);
+  setBar('bar-env-lux', Math.min(lux/100000*100,100), 'var(--sun)');
+  el('env-lux-sub').textContent = el('ov-lux-sub').textContent;
+  setV('env-pres', pres.toFixed(0));
+
+  el('env-hora').textContent = d.hora || '--:--:--';
+  el('env-temp2').textContent = temp.toFixed(1)+'°C';
+  el('env-hum2').textContent  = hum.toFixed(1)+'%';
+  setBar('bar-env-temp2', Math.min(temp/50*100,100), 'var(--sun)');
+  setBar('bar-env-hum2',  hum, 'var(--water)');
+
+  // MQ air chip
+  setV('env-mq-v', mq.toFixed(2)+' V', mqState);
+  setBar('bar-mq-v', Math.min(mq/3.3*100,100), mq>2.5?'var(--danger)':'var(--air)');
+  setChip('air-chip', mq>2.5?'Degradado':'Buena', mq>2.5?'danger':'ok');
+  el('env-mq-desc').textContent = mq>2.5
+    ? '⚠ El aire supera 2.5V en el MQ135. Considera ventilar el área.'
+    : 'La calidad del aire es buena ('+mq.toFixed(2)+' V < 2.5 V límite).';
+
+  // ── Soil ──
+  el('soil-fill').style.height = soilPct+'%';
+  el('soil-pct-label').textContent = soilPct+'%';
+  setBar('soil-bar', soilPct, soilPct<30?'var(--danger)':soilPct<50?'var(--warn)':'var(--sage)');
+  setChip('soil-chip', suelo>1800?'Necesita riego':'Humedad OK', soilState);
+  el('soil-status-text').textContent = suelo>1800
+    ? '⚠ El suelo está seco. Se recomienda riego inmediato.'
+    : `El suelo tiene ${soilPct}% de humedad. Condiciones óptimas para la planta.`;
+
+  // ── Energy ──
+  el('en-panel').textContent = ipanel.toFixed(3)+' A';
+  el('en-batt').textContent  = ibatt.toFixed(3)+' A';
+  const panelOK = ipanel>0.05 && lux>200;
+  el('en-panel-status').textContent = panelOK ? '✓ Generando energía correctamente' : '— Sin generación (luz insuficiente o noche)';
+  el('arr-panel').className = 'energy-arrow'+(panelOK?' active':'');
+  el('arr-batt').className  = 'energy-arrow'+(panelOK?' active':'');
+  el('arr-panel-lbl').textContent = panelOK ? ipanel.toFixed(2)+'A' : '--';
+  el('arr-batt-lbl').textContent  = ibatt.toFixed(2)+'A';
+  el('en-lux-v').textContent = Math.round(lux)+' lx';
+  setBar('bar-en-lux', Math.min(lux/100000*100,100), 'var(--sun)');
+
+  const battPct = Math.max(0,Math.min(100, 50 + ipanel*20 - Math.abs(ibatt)*10));
+  el('batt-pct-en').textContent = Math.round(battPct)+'%';
+  const battFill = el('batt-fill-en');
+  battFill.style.width = battPct+'%';
+  battFill.className = 'batt-inner'+(battPct<20?' danger':battPct<40?' warn':'');
+  setChip('batt-chip', battPct>60?'Buena':battPct>30?'Media':'Baja', battPct>60?'ok':battPct>30?'warn':'danger');
+
+  el('en-ibatt-v').textContent  = ibatt.toFixed(3)+' A';
+  el('en-ipanel-v').textContent = ipanel.toFixed(3)+' A';
+  setBar('bar-ibatt',  Math.min(Math.abs(ibatt)/5*100,100), ibatt<0?'var(--danger)':'var(--ok)');
+  setBar('bar-ipanel', Math.min(ipanel/3*100,100), 'var(--sun)');
+
+  // ── Weather IA rec ──
+  const prob = d.prob_lluvia >= 0 ? d.prob_lluvia : 0;
+  const rec = prob>60 && suelo>1800
+    ? 'Se prevé lluvia próximamente. Podría no ser necesario regar.'
+    : suelo>1800
+    ? 'El suelo está seco y no se prevé lluvia. Se recomienda regar pronto.'
+    : prob>60
+    ? 'Lluvia prevista. El suelo está bien hidratado.'
+    : '✓ Condiciones normales. Monitoreo activo.';
+  el('w-ia-rec').textContent = rec;
+
+  // Hero dots
+  el('hero-dot-mqtt').className   = 'hero-dot active';
+  el('hero-dot-sensor').className = 'hero-dot active';
+}
+
+function calcIAPred() {
+  if (histPres.length < 3) return 'Calibrando...';
+  const dP = histPres[histPres.length-1] - histPres[Math.max(0,histPres.length-4)];
+  const dH = histHum.length>3 ? histHum[histHum.length-1]-histHum[Math.max(0,histHum.length-4)] : 0;
+  if (dP < -2 && dH > 4) return 'Alta probabilidad de lluvia';
+  if (dP < -1.5) return 'Posible lluvia próximamente';
+  if (dP >  1.5) return 'El tiempo mejora';
+  return 'Clima estable';
+}
+
+function renderClima(d) {
+  const temp = d.temp ?? '--';
+  const prob = d.prob ?? 0;
+  el('ov-w-temp').textContent  = typeof temp==='number' ? temp.toFixed(1) : '--';
+  el('ov-w-desc').textContent  = d.desc || 'Sin descripción';
+  el('ov-w-prob').textContent  = prob;
+  el('w-temp-big').textContent = typeof temp==='number' ? temp.toFixed(1) : '--';
+  el('w-desc-big').textContent = d.desc || '--';
+  el('w-hum-big').textContent  = d.hum  || '--';
+  el('w-lluvia-big').textContent = d.lluvia?.toFixed(1) || '0';
+  el('w-prob-big').textContent = prob;
+
+  const rainPct = Math.min(prob,100);
+  const rfOv = el('ov-rain-fill');
+  const rfBig = el('rain-fill-big');
+  if (rfOv)  { rfOv.style.width  = rainPct+'%'; rfOv.className  = 'rain-fill'+(prob>60?' high':''); }
+  if (rfBig) { rfBig.style.width = rainPct+'%'; rfBig.className = 'rain-fill'+(prob>60?' high':''); }
+
+  // Icono dinámico
+  const desc = (d.desc||'').toLowerCase();
+  const icon = desc.includes('lluv')||desc.includes('rain') ? '🌧' :
+               desc.includes('nub')||desc.includes('cloud') ? '⛅' :
+               desc.includes('torm')||desc.includes('storm')? '⛈' :
+               desc.includes('nieb')||desc.includes('fog')  ? '🌫' : '☀️';
+  ['ov-w-icon','w-icon-big'].forEach(id=>{ if(el(id)) el(id).textContent=icon; });
+  setChip('ov-clima-chip', d.desc?'Actualizado':'Sin datos', d.desc?'ok':'neutral');
+}
+
+// ── CONTROLES RIEGO ───────────────────────────────────────
+function cmdRiego(tipo) {
+  const dur = tipo==='agua'
+    ? parseInt(document.getElementById('dur-agua').value)
+    : parseInt(document.getElementById('dur-fert').value);
+  const payload = tipo==='agua'
+    ? {bomba_agua:true, duracion:dur}
+    : {bomba_fert:true, duracion:dur};
+  cmd(payload);
+  toast('Activando '+tipo, `Duración: ${dur}s`,'ok');
+}
+
+let autoRiego = false;
+function toggleAuto(){
+  autoRiego = !autoRiego;
+  el('tog-auto').className = 'toggle'+(autoRiego?' on':'');
+  addLog('Riego automático: '+(autoRiego?'ON':'OFF'),'info');
+}
+
+// ── UI HELPERS ────────────────────────────────────────────
+function el(id){ return document.getElementById(id); }
+
+function setV(id, val, state) {
+  const e = el(id);
+  if (!e) return;
+  if (e.textContent !== String(val)) {
+    e.textContent = val;
+    e.classList.remove('flashed');
+    void e.offsetWidth;
+    e.classList.add('flashed');
+  }
+  e.className = 'stat-value'+(state?' '+state:'');
+}
+
+function setBar(id, pct, color) {
+  const e = el(id);
+  if (!e) return;
+  e.style.width = Math.max(0,Math.min(100,pct))+'%';
+  if (color) e.style.background = color;
+}
+
+function setChip(id, text, state) {
+  const e = el(id);
+  if (!e) return;
+  e.textContent = text;
+  e.className = 'chip '+(state||'neutral');
+}
+
+function setDot(id, state) {
+  const e = el(id);
+  if (!e) return;
+  e.className = 'conn-dot'+(state==='ok'?' ok':state==='warn'?' warn':state==='err'?' err':'');
+}
+
+// ── LOG ───────────────────────────────────────────────────
+function addLog(msg, type) {
+  const tl = el('log-timeline');
+  if (!tl) return;
+  const t = new Date().toLocaleTimeString('es-MX',{hour12:false});
+  const item = document.createElement('div');
+  item.className = 'tl-item';
+  item.innerHTML = `<div class="tl-dot ${type||'info'}"></div><div class="tl-time">${t}</div><div class="tl-msg">${escHTML(msg)}</div>`;
+  tl.insertBefore(item, tl.firstChild);
+  if (tl.children.length > 100) tl.removeChild(tl.lastChild);
+  logCount++;
+}
+
+function addAiLog(msg, type) {
+  const tl = el('ai-timeline');
+  if (!tl) return;
+  const t = new Date().toLocaleTimeString('es-MX',{hour12:false});
+  const item = document.createElement('div');
+  item.className = 'tl-item';
+  item.innerHTML = `<div class="tl-dot ${type||'info'}"></div><div class="tl-time">${t}</div><div class="tl-msg">${escHTML(msg)}</div>`;
+  tl.insertBefore(item, tl.firstChild);
+  if (tl.children.length > 40) tl.removeChild(tl.lastChild);
+}
+
+function clearLog(){
+  const tl = el('log-timeline');
+  if (tl) tl.innerHTML='';
+  addLog('Log limpiado','info');
+}
+
+function updateAlertBadge(){
+  const b = el('alert-badge');
+  if (!b) return;
+  b.className = alertCount>0 ? 'badge show' : 'badge';
+}
+
+function escHTML(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// ── TOAST ─────────────────────────────────────────────────
+let toastTimer = {};
+function toast(title, msg, type) {
+  const area = el('toast-area');
+  if (!area) return;
+  const id = 'toast-'+Date.now();
+  const div = document.createElement('div');
+  div.className = 'toast '+(type||'warn');
+  div.id = id;
+  const icon = type==='ok'?'✓':type==='danger'?'⚠':'ℹ';
+  div.innerHTML = `<div class="toast-icon">${icon}</div><div class="toast-body"><div class="toast-title">${escHTML(title)}</div><div class="toast-msg">${escHTML(msg)}</div></div><div class="toast-close" onclick="document.getElementById('${id}').remove()">✕</div>`;
+  area.appendChild(div);
+  toastTimer[id] = setTimeout(()=>{ const t=el(id); if(t) t.remove(); }, 5000);
+}
+
+// ── INIT ──────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  connectMQTT();
+});
+</script>
+</body>
+</html>
