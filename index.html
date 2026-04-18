@@ -846,6 +846,105 @@ input[type=range]::-webkit-slider-thumb{
 /* Value flash */
 @keyframes val-flash{0%{opacity:0.4}100%{opacity:1}}
 .flashed{animation:val-flash 0.4s ease}
+
+/* ── RESPONSIVE PARA CELULAR ───────────────────── */
+@media (max-width: 768px) {
+  .app {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+  }
+  .main {
+    order: 1;
+    flex: 1;
+    min-height: 0;
+  }
+  .sidebar {
+    order: 2;
+    flex: none;
+    height: auto;
+    border-right: none;
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .sidebar-art, .sidebar-bottom, .nav-section {
+    display: none;
+  }
+  .sidebar-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 8px;
+    gap: 4px;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+  .sidebar-nav::-webkit-scrollbar { display: none; }
+  .nav-item {
+    flex-direction: column;
+    min-width: 72px;
+    padding: 6px 4px;
+    font-size: 0.65rem;
+    position: relative;
+    white-space: nowrap;
+    text-align: center;
+  }
+  .nav-item .nav-icon {
+    width: 26px;
+    height: 26px;
+    font-size: 13px;
+    margin-bottom: 4px;
+  }
+  .nav-badge {
+    position: absolute;
+    top: 2px;
+    right: 14px;
+    padding: 1px 4px;
+    font-size: 0.55rem;
+  }
+  .topbar {
+    padding: 0 16px;
+    height: 56px;
+  }
+  .page-title {
+    font-size: 1.05rem;
+  }
+  .time-display {
+    padding: 3px 6px;
+    font-size: 0.75rem;
+  }
+  .content {
+    padding: 16px;
+  }
+  .grid-2, .grid-3, .grid-4, .grid-auto {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+  .hero-card {
+    padding: 18px;
+  }
+  .hero-title {
+    font-size: 1.4rem;
+  }
+  .weather-hero {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+  .energy-flow {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .toast-area {
+    top: auto;
+    bottom: 85px;
+    left: 16px;
+    right: 16px;
+  }
+  .toast {
+    max-width: none;
+  }
+}
 </style>
 </head>
 <body>
